@@ -17,6 +17,7 @@ from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores.faiss import FAISS
 from pypdf import PdfReader
+
 # import faiss
 
 from typing import List, Tuple  
@@ -105,23 +106,25 @@ import openai
 # from my_pdf_lib import get_index_for_pdf
 from langchain.chains import RetrievalQA
 from langchain.chat_models import ChatOpenAI
+from openai import ChatCompletion, APIError
 
 import os
 
 # Set the title for the Streamlit app
-st.title("RAG enhanced Chatbot")
+st.title("bummock RAG Chatbot")
 
 # Set up the OpenAI API key 
-os.environ["OPENAI_API_KEY"] = "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"
+os.environ["OPENAI_API_KEY"] = "your-openai-api-key"
 
-openai.api_key = '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'
+openai.api_key = 'your-openai-api-key'
 # Upload PDF files using Streamlit's file uploader
 pdf_files = st.file_uploader("", type="pdf", accept_multiple_files=True)
 
 
 
 # Cached function to create a vectordb for the provided PDF files
-@st.experimental_memo
+# @st.experimental_memo
+@st.cache_resource
 def create_vectordb(files, filenames):
     # Show a spinner while creating the vectordb
     with st.spinner("Vector database"):
@@ -208,3 +211,4 @@ prompt.append({"role": "assistant", "content": result})
 
 # Store the updated prompt in the session state
 st.session_state["prompt"] = prompt
+
