@@ -1,8 +1,6 @@
 # import databutton as db
 import streamlit as st
 import sys
-
-
 import re
 import time
 # import altair
@@ -17,8 +15,6 @@ from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores.faiss import FAISS
 from pypdf import PdfReader
-
-# import faiss
 
 from typing import List, Tuple  
 
@@ -117,14 +113,10 @@ st.title("bummock RAG Chatbot")
 os.environ["OPENAI_API_KEY"] = "your-openai-api-key"
 
 openai.api_key = 'your-openai-api-key'
-# Upload PDF files using Streamlit's file uploader
-pdf_files = st.file_uploader("", type="pdf", accept_multiple_files=True)
-
-
 
 # Cached function to create a vectordb for the provided PDF files
 # @st.experimental_memo
-@st.cache_resource
+@st.cache_data
 def create_vectordb(files, filenames):
     # Show a spinner while creating the vectordb
     with st.spinner("Vector database"):
@@ -133,7 +125,8 @@ def create_vectordb(files, filenames):
         )
     return vectordb
 
-
+# Upload PDF files using Streamlit's file uploader
+pdf_files = st.file_uploader("", type="pdf", accept_multiple_files=True)
 # If PDF files are uploaded, create the vectordb and store it in the session state
 if pdf_files:
     pdf_file_names = [file.name for file in pdf_files]
@@ -176,39 +169,47 @@ if question:
         with st.message("assistant"):
             st.write("You need to provide a PDF")
             st.stop()
+    
+    # Search the vectordb for similar content to the user's question
+    search_results = vectordb.similarity_search(question, k=7)
 
-# Search the vectordb for similar content to the user's question
-search_results = vectordb.similarity_search(question, k=3)
-#search_results
+    # search_results
+    pdf_extract = "/n ".join([result.page_content for result in search_results])
 
- # Add the user's question to the prompt and display it
-prompt.append({"role": "user", "content": question})
-with st.chat_message("user"):
-    st.write(question)
+    # Update the prompt with the pdf extract
+    prompt[0] = {
+        "role": "system",
+        "content": prompt_template.format(pdf_extract=pdf_extract),
+    }
 
-# Display an empty assistant message while waiting for the response
-with st.chat_message("assistant"):
-    botmsg = st.empty()
+    # Add the user's question to the prompt and display it
+    prompt.append({"role": "user", "content": question})
+    with st.chat_message("user"):
+        st.write(question)
 
-# Call ChatGPT with streaming and display the response as it comes
-response = []
-result = ""
-for chunk in openai.ChatCompletion.create(
-    model="gpt-3.5-turbo", messages=prompt, stream=True
-):
-    text = chunk.choices[0].get("delta", {}).get("content")
-    if text is not None:
-        response.append(text)
-        result = "".join(response).strip()
-        botmsg.write(result)
+    # Display an empty assistant message while waiting for the response
+    with st.chat_message("assistant"):
+        botmsg = st.empty()
 
-# Add the assistant's response to the prompt
-prompt.append({"role": "assistant", "content": result})
+    # Call ChatGPT with streaming and display the response as it comes
+    response = []
+    result = ""
+    for chunk in openai.ChatCompletion.create(
+        model="gpt-3.5-turbo", messages=prompt, stream=True
+    ):
+        text = chunk.choices[0].get("delta", {}).get("content")
+        if text is not None:
+            response.append(text)
+            result = "".join(response).strip()
+            botmsg.write(result)
 
-# Store the updated prompt in the session state
-st.session_state["prompt"] = prompt
-prompt.append({"role": "assistant", "content": result})
+    # Add the assistant's response to the prompt
+    prompt.append({"role": "assistant", "content": result})
 
-# Store the updated prompt in the session state
-st.session_state["prompt"] = prompt
+    # Store the updated prompt in the session state
+    st.session_state["prompt"] = prompt
+    prompt.append({"role": "assistant", "content": result})
+
+    # Store the updated prompt in the session state
+    st.session_state["prompt"] = prompt
 
